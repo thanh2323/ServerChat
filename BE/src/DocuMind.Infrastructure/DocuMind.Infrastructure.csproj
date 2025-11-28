@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DocuMind.Application\DocuMind.Application.csproj" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.11" />
+
+	  <!-- REQUIRED for HasDefaultValue(), HasDefaultValueSql(), HasComputedColumnSql(), etc -->
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.11" />
+
+	  <!-- SQL Server provider -->
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.11" />
+  </ItemGroup>
+
+</Project>

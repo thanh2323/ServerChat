@@ -1,0 +1,65 @@
+# ===============================
+# .NET / C# / Visual Studio
+# ===============================
+
+# Build results
+bin/
+obj/
+out/
+
+# VS temporary files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / JetBrains
+.idea/
+
+# NuGet packages
+*.nupkg
+packages/
+.nuget/
+
+# Dotnet local tools
+.dotnet/tools/
+
+# ===============================
+# Node / React
+# ===============================
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build output
+build/
+dist/
+
+# npm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# VSCode
+.vscode/
+
+# Mac OS
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# ===============================
+# Others
+# ===============================
+*.swp
+*.tmp
