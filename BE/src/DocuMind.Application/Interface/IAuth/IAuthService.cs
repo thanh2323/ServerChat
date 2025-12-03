@@ -4,14 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DocuMind.Application.DTOs.Auth;
+using DocuMind.Application.DTOs.Common;
 
 namespace DocuMind.Application.Interface.IAuth
 {
-    public interface IAuthService
+    public interface IAuthService 
     {
-        Task<AuthResponseDto> LoginAsync(LoginDto dto);
-        Task<AuthResponseDto> RegisterAsync(RegisterDto dto);
-        Task<AuthResponseDto> ChangePasswordAsync(ChangePasswordDto dto);
+        Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginDto dto);
+        Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterDto dto);
+        Task<ServiceResult<AuthResponseDto>> ChangePasswordAsync(ChangePasswordDto dto);
+
 
     }
 }

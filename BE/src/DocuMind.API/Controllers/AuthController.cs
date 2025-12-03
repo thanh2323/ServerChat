@@ -1,8 +1,11 @@
 ﻿using System.Security.Claims;
+using Azure;
 using DocuMind.Application.DTOs.Auth;
+using DocuMind.Application.DTOs.Common;
 using DocuMind.Application.Interface.IAuth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DocuMind.API.Controllers
@@ -21,55 +24,41 @@ namespace DocuMind.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            try
-            {
-                var result = await _authService.LoginAsync(dto);
-                return Ok(result);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(new { message = ex.Message });
-            }
+            var result = await _authService.LoginAsync(dto);
+            if (!result.Success)
+                return BadRequest(ApiResponse<AuthResponseDto>.ErrorResponse(result.Message));
+
+
+            return Ok(ApiResponse<AuthResponseDto>.SuccessResponse(result.Data!, result.Message));
+
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            try
-            {
-                var result = await _authService.RegisterAsync(dto);
-                return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var result = await _authService.RegisterAsync(dto);
+
+            if (!result.Success)
+                return BadRequest(ApiResponse<AuthResponseDto>.ErrorResponse(result.Message));
+
+            return Ok(ApiResponse<AuthResponseDto>.SuccessResponse(result.Data!, result.Message));
         }
 
         [Authorize]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
-            try
-            {
 
-                var email = User.FindFirst(ClaimTypes.Email)?.Value;
-                if (email == null) return Unauthorized(new { message = "You don't have account"});
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (email == null) return Unauthorized(new { message = "You don't have account" });
 
-                dto.Email = email; 
-                var result = await _authService.ChangePasswordAsync(dto);
-                return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(new { message = ex.Message });
-            }
+            dto.Email = email;
+            var result = await _authService.ChangePasswordAsync(dto);
+            if (!result.Success)
+                return BadRequest(ApiResponse<AuthResponseDto>.ErrorResponse(result.Message));
+
+            return Ok(ApiResponse<AuthResponseDto>.SuccessResponse(result.Data!, result.Message));
         }
-   
     }
 }
 

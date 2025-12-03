@@ -6,6 +6,8 @@ using DocuMind.Core.Interfaces.IRepo;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Security.Claims;
+using DocuMind.Application.DTOs.Common;
+using DocuMind.Application.DTOs.User;
 
 namespace DocuMind.Application.Services
 {
@@ -24,23 +26,23 @@ namespace DocuMind.Application.Services
             _jwtService = jwtService;
             _logger = logger;
         }
-        public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
+        public async Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginDto dto)
         {
             var user = await userRepository.GetByEmailAsync(dto.Email);
 
             if (user == null || !_passwordHasher.VerifyPassword(dto.Password, user.PasswordHash))
-                throw new UnauthorizedAccessException("Invalid email or password");
+                return ServiceResult<AuthResponseDto>.Fail("Invalid email or password");
 
             // Check if user is banned 
             if (user.IsLocked)
-                throw new UnauthorizedAccessException("Your account has been locked. Please contact support.");
+                return ServiceResult<AuthResponseDto>.Fail("Your account has been locked. Please contact support.");
 
             // Generate JWT token
             var token = _jwtService.GenerateToken(user);
 
             _logger.LogInformation("User logged in: {Email}", user.Email);
 
-            return new AuthResponseDto
+            var returnDto = new AuthResponseDto
             {
                 UserId = user.Id,
                 FullName = user.FullName,
@@ -49,15 +51,15 @@ namespace DocuMind.Application.Services
                 Token = token,
                 ExpiresAt = DateTime.UtcNow.AddDays(1)
             };
+            return ServiceResult<AuthResponseDto>.Ok(returnDto, "login successful");
         }
 
-        public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
+        public async Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterDto dto)
         {
             var existingUser = await userRepository.EmailExistsAsync(dto.Email);
 
             if (existingUser)
-                throw new InvalidOperationException("Email is already registered");
-
+                return ServiceResult<AuthResponseDto>.Fail("Email is already registered");
 
             // Create new user
             var user = new User
@@ -80,7 +82,7 @@ namespace DocuMind.Application.Services
 
             _logger.LogInformation("User registered: {Email}", user.Email);
 
-            return new AuthResponseDto
+            var returnDto = new AuthResponseDto
             {
                 UserId = user.Id,
                 FullName = user.FullName,
@@ -90,18 +92,21 @@ namespace DocuMind.Application.Services
                 ExpiresAt = DateTime.UtcNow.AddDays(1)
             };
 
+            
+            return ServiceResult<AuthResponseDto>.Ok(returnDto, "Registration successful");
+
         }
 
-        public async Task<AuthResponseDto> ChangePasswordAsync(ChangePasswordDto dto)
+        public async Task<ServiceResult<AuthResponseDto>> ChangePasswordAsync(ChangePasswordDto dto)
         {
             var user = await userRepository.GetByEmailAsync(dto.Email);
             if (user == null)
-                throw new InvalidOperationException("User not found");
+                return ServiceResult<AuthResponseDto>.Fail("User not found");
 
 
             // Verify current password
             if (!_passwordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
-                throw new UnauthorizedAccessException("Current password is incorrect");
+                return ServiceResult<AuthResponseDto>.Fail("Current password is incorrect");
 
             // Update to new password
             user.PasswordHash = _passwordHasher.HashPassword(dto.NewPassword);
@@ -116,7 +121,7 @@ namespace DocuMind.Application.Services
 
             _logger.LogInformation("Password changed for user: {Email}", user.Email);
 
-            return new AuthResponseDto
+            var returnDto = new AuthResponseDto
             {
                 UserId = user.Id,
                 FullName = user.FullName,
@@ -126,6 +131,7 @@ namespace DocuMind.Application.Services
                 ExpiresAt = DateTime.UtcNow.AddDays(1)
             };
 
+            return ServiceResult<AuthResponseDto>.Ok(returnDto, "Change password successful");
         }
     }
 }
