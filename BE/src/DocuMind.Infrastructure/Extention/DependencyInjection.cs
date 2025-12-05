@@ -39,7 +39,7 @@ namespace DocuMind.Infrastructure.Extention
 
             //User Services
             services.AddScoped<IUserService, UserService>();
-            services.AddScoped<IDashboardService, DashBoardService>();
+            services.AddScoped<IUserDashboardService, DashBoardService>();
             return services;
         }
     }
