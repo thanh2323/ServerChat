@@ -5,11 +5,12 @@ using System.Text;
 using System.Threading.Tasks;
 using DocuMind.Core.Interfaces.IPdf;
 using Microsoft.Extensions.Logging;
-
+using SharpToken;
 
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace DocuMind.Infrastructure.Services
 {
@@ -72,116 +73,65 @@ namespace DocuMind.Infrastructure.Services
         {
             var raw = ExtractText(filePath);
 
-            // 1. Fix hyphen broken words
+            // Fix broken hyphen words
             raw = Regex.Replace(raw, @"(\w+)-\s*\n(\w+)", "$1$2");
 
-            // 2. Normalize whitespace
+            // Merge broken lines inside paragraphs
+            raw = Regex.Replace(raw, @"(?<!\n)\n(?!\n)", " ");
+
+            // Normalize whitespace
             raw = Regex.Replace(raw, @"[ \t]+", " ");
             raw = Regex.Replace(raw, @"\n{3,}", "\n\n");
 
-            // 3. Normalize bullets
+            // Normalize bullets
             raw = raw.Replace("•", "-");
 
             return raw.Trim();
         }
-
-
-        public List<string> ChunkText(string text, int chunkSize = 500, int overlap = 50)
+        public List<string> ChunkByTokens(string text, int maxTokens = 500, int overlap = 50)
         {
             if (string.IsNullOrWhiteSpace(text))
-            {
                 return new List<string>();
-            }
+
+            if (overlap >= maxTokens)
+                throw new ArgumentException("overlap must be smaller than maxTokens");
+
+            var encoding = GptEncoding.GetEncoding("cl100k_base");
+            var tokens = encoding.Encode(text);
 
             var chunks = new List<string>();
+            int start = 0;
 
-            // Split by sentences first (better semantic boundaries)
-            var sentences = SplitIntoSentences(text);
-
-            var currentChunk = new StringBuilder();
-            var currentLength = 0;
-
-            foreach (var sentence in sentences)
+            while (start < tokens.Count)
             {
-                var sentenceLength = sentence.Length;
+                int end = Math.Min(start + maxTokens, tokens.Count);
+                var chunkTokens = tokens.GetRange(start, end - start);
 
-                // If adding this sentence exceeds chunk size and we have content, save chunk
-                if (currentLength + sentenceLength > chunkSize && currentLength > 0)
-                {
-                    chunks.Add(currentChunk.ToString().Trim());
+                var chunkText = encoding.Decode(chunkTokens);
+                chunks.Add(chunkText);
 
-                    // Create overlap: keep last overlap characters
-                    var chunkText = currentChunk.ToString();
-                    if (chunkText.Length > overlap)
-                    {
-                        var overlapText = chunkText.Substring(chunkText.Length - overlap);
-                        currentChunk = new StringBuilder(overlapText);
-                        currentLength = overlap;
-                    }
-                    else
-                    {
-                        currentChunk.Clear();
-                        currentLength = 0;
-                    }
-                }
 
-                // Add sentence to current chunk
-                currentChunk.Append(sentence);
-                currentChunk.Append(" ");
-                currentLength += sentenceLength + 1;
+                if (end == tokens.Count)
+                    break;
+
+                start = end - overlap;
+
+
+                if (start <= 0)
+                    start = 0;
             }
+            _logger.LogInformation("Tokens: {TokenCount}", tokens.Count);
+            _logger.LogInformation("Chunks: {ChunkCount}", chunks.Take(2));
+            _logger.LogInformation("Chunks Context: {chunks}",
+     JsonSerializer.Serialize(chunks, new JsonSerializerOptions
+     {
+         WriteIndented = true,
+         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+     })
+ );
 
-            // Add remaining text
-            if (currentChunk.Length > 0)
-            {
-                chunks.Add(currentChunk.ToString().Trim());
-            }
-
-            _logger.LogInformation("Text chunked into {ChunkCount} chunks", chunks.Count);
             return chunks;
         }
-
-
-        private List<string> SplitIntoSentences(string text)
-        {
-            // Simple sentence splitting - can be improved with NLP libraries
-            var sentences = new List<string>();
-            var sentenceEndings = new[] { '.', '!', '?' };
-
-            var currentSentence = new StringBuilder();
-
-            for (int i = 0; i < text.Length; i++)
-            {
-                currentSentence.Append(text[i]);
-
-                if (sentenceEndings.Contains(text[i]))
-                {
-                    // Check if next char is whitespace (end of sentence)
-                    if (i + 1 >= text.Length || char.IsWhiteSpace(text[i + 1]))
-                    {
-                        var sentence = currentSentence.ToString().Trim();
-                        if (!string.IsNullOrWhiteSpace(sentence))
-                        {
-                            sentences.Add(sentence);
-                        }
-                        currentSentence.Clear();
-                    }
-                }
-            }
-
-            // Add remaining text
-            if (currentSentence.Length > 0)
-            {
-                var sentence = currentSentence.ToString().Trim();
-                if (!string.IsNullOrWhiteSpace(sentence))
-                {
-                    sentences.Add(sentence);
-                }
-            }
-
-            return sentences;
-        }
-
 
 
 
