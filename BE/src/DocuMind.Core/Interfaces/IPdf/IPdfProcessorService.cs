@@ -10,7 +10,7 @@ namespace DocuMind.Core.Interfaces.IPdf
     {
         string ExtractText(string filePath, CancellationToken cancellationToken = default);
         string ExtractCleanText(string filePath);
-        List<string> ChunkByTokens(string text, int maxTokens, int overlap );
+        List<string> ChunkSemantic(string text, int chunkSize, int overlap );
         bool ValidatePdf(string filePath);
     }
 }

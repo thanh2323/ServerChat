@@ -15,18 +15,23 @@ public class TestPdfController : ControllerBase
     [HttpGet]
     public IActionResult Test()
     {
-        var path = @"D:\tv.pdf";
+        var path = @"D:\GameProject_Report_NguyenChiThanh.pdf";
 
         if (!_pdfService.ValidatePdf(path))
             return BadRequest("Invalid PDF");
 
         var text = _pdfService.ExtractCleanText(path);
-        var chunks = _pdfService.ChunkByTokens(text,500, 50);
+
+        var chunks = _pdfService.ChunkSemantic(text,4000, 400);
 
         return Ok(new
         {
             textLength = text.Length,
+            textContents = text,
+
+       
             chunks = chunks.Count,
+    
             //show all text in chunks
             chunkContents = chunks
 

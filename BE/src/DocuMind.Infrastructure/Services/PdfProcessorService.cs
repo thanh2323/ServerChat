@@ -10,7 +10,6 @@ using SharpToken;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using System.Text.RegularExpressions;
-using System.Text.Json;
 
 namespace DocuMind.Infrastructure.Services
 {
@@ -27,9 +26,6 @@ namespace DocuMind.Infrastructure.Services
         {
             try
             {
-                if (!File.Exists(filePath))
-                    throw new FileNotFoundException("PDF file not found.", filePath);
-
                 var textBuilder = new StringBuilder();
 
                 using var reader = new PdfReader(filePath);
@@ -46,11 +42,11 @@ namespace DocuMind.Infrastructure.Services
                     var page = pdfDoc.GetPage(i);
 
                     var pageText = PdfTextExtractor.GetTextFromPage(page);
-
+                    
                     if (!string.IsNullOrWhiteSpace(pageText))
                     {
                         textBuilder.AppendLine(pageText);
-                        textBuilder.AppendLine();
+                        textBuilder.AppendLine(); // Add extra line between pages
                     }
                 }
                 var extractedText = textBuilder.ToString();
@@ -73,67 +69,137 @@ namespace DocuMind.Infrastructure.Services
         {
             var raw = ExtractText(filePath);
 
-            // Fix broken hyphen words
+            // 1. Normalize newline
+            raw = Regex.Replace(raw, @"\r\n|\r", "\n");
+            
+            // 2.  Remove "Table border"
+            raw = raw.Replace("|", " ");
+           
+            // 2. Fix hyphenated words
             raw = Regex.Replace(raw, @"(\w+)-\s*\n(\w+)", "$1$2");
 
-            // Merge broken lines inside paragraphs
-            raw = Regex.Replace(raw, @"(?<!\n)\n(?!\n)", " ");
+            // 3. Detect & mark headings
+            raw = Regex.Replace(
+                raw,
+                @"\n([A-Z][A-Za-z0-9 \-:]{5,60})\n",
+                "\n\n## $1\n\n"
+            );
 
-            // Normalize whitespace
+            // 4. Remove page numbers (full line only)
+            raw = Regex.Replace(
+                 raw,
+                 @"^\s*([\|\-\.]\s*)?(Page\s*)?\d+(\s*of\s*\d+)?(\s*[\|\-\.])?\s*$",
+                 "",
+                 RegexOptions.Multiline | RegexOptions.IgnoreCase
+            );
+
+            // 5. Remove common noise lines
+            raw = Regex.Replace(
+                raw,
+                @"^\s*(Confidential|Draft)\s*$",
+                "",
+                RegexOptions.Multiline | RegexOptions.IgnoreCase
+            );
+
+            // 6. Normalize bullet characters
+            raw = Regex.Replace(raw,
+                @"[•‧◦‣●\u25AA\u25CF\u25E6\u2022\u2023\u2027\u2043\u2219\uF0B7]",
+                "-");
+            // Merge lines that were broken in the middle of sentences
+            raw = Regex.Replace(raw, @"(?<=\w)\n(?=[a-z])", " ");
+
+            // Remove excessive dots (e.g., from table of contents)
+            raw = Regex.Replace(raw, @"\.{4,}\s*\d*", " ");
+
+            // 7. Normalize whitespace slightly (DON’T merge real line breaks)
             raw = Regex.Replace(raw, @"[ \t]+", " ");
             raw = Regex.Replace(raw, @"\n{3,}", "\n\n");
 
-            // Normalize bullets
-            raw = raw.Replace("•", "-");
-
-            return raw.Trim();
+            return raw.Trim();  
         }
-        public List<string> ChunkByTokens(string text, int maxTokens = 500, int overlap = 50)
+        private string SafeOverlap(string text, int maxChars)
+        {
+            if (text.Length <= maxChars)
+                return text;
+
+            var cut = text.Length - maxChars;
+            var sub = text.Substring(cut);
+
+            var firstSpace = sub.IndexOf(' ');
+            if (firstSpace > 0)
+                return sub.Substring(firstSpace + 1);
+
+            return sub;
+        }
+        public List<string> ChunkSemantic(string text, int chunkSize = 4000, int overlap = 200)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return new List<string>();
 
-            if (overlap >= maxTokens)
-                throw new ArgumentException("overlap must be smaller than maxTokens");
-
-            var encoding = GptEncoding.GetEncoding("cl100k_base");
-            var tokens = encoding.Encode(text);
+            if (overlap >= chunkSize)
+                throw new ArgumentException("overlap must be smaller than chunkSize");
 
             var chunks = new List<string>();
-            int start = 0;
 
-            while (start < tokens.Count)
+            // Split by paragraphs first (semantic boundary)
+            var paragraphs = Regex.Split(text,@"(?<=\n\n)|(?=## )");
+
+            var buffer = new StringBuilder();
+            var bufferLength = 0;
+
+            foreach (var paragraph in paragraphs)
             {
-                int end = Math.Min(start + maxTokens, tokens.Count);
-                var chunkTokens = tokens.GetRange(start, end - start);
+                if (string.IsNullOrWhiteSpace(paragraph))
+                    continue;
 
-                var chunkText = encoding.Decode(chunkTokens);
-                chunks.Add(chunkText);
+                // If paragraph too long → split by sentences
+                if (paragraph.Length > chunkSize)
+                {
+                    var sentences = Regex.Split(paragraph, @"(?<=[a-z0-9][\.!\?])\s+(?=[A-Z])");
 
+                    foreach (var sentence in sentences)
+                    {
+                        if (bufferLength + sentence.Length > chunkSize && bufferLength > 0)
+                        {
+                            // Flush current chunk
+                            chunks.Add(buffer.ToString().Trim());
 
-                if (end == tokens.Count)
-                    break;
+                            // Create overlap
+                            var overlapText = SafeOverlap(buffer.ToString(), overlap);
 
-                start = end - overlap;
+                            buffer.Clear();
+                            buffer.Append(overlapText);
+                            bufferLength = overlapText.Length;
+                        }
 
+                        buffer.Append(sentence).Append(" ");
+                        bufferLength += sentence.Length + 1;
+                    }
+                }
+                else
+                {
+                    if (bufferLength + paragraph.Length > chunkSize && bufferLength > 0)
+                    {
+                        chunks.Add(buffer.ToString().Trim());
 
-                if (start <= 0)
-                    start = 0;
+                        var overlapText = SafeOverlap(buffer.ToString(), overlap);
+
+                        buffer.Clear();
+                        buffer.Append(overlapText);
+                        bufferLength = overlapText.Length;
+                    }
+
+                    buffer.Append(paragraph).Append("\n\n");
+                    bufferLength += paragraph.Length + 2;
+                }
             }
-            _logger.LogInformation("Tokens: {TokenCount}", tokens.Count);
-            _logger.LogInformation("Chunks: {ChunkCount}", chunks.Take(2));
-            _logger.LogInformation("Chunks Context: {chunks}",
-     JsonSerializer.Serialize(chunks, new JsonSerializerOptions
-     {
-         WriteIndented = true,
-         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-     })
- );
+
+            // Add remaining content
+            if (buffer.Length > 0)
+                chunks.Add(buffer.ToString().Trim());
 
             return chunks;
         }
-
-
 
         public bool ValidatePdf(string filePath)
         {
