@@ -1,4 +1,5 @@
-﻿using DocuMind.Core.Interfaces.IPdf;
+﻿using DocuMind.Core.Interfaces.IEmbedding;
+using DocuMind.Core.Interfaces.IPdf;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
@@ -6,35 +7,35 @@ using Microsoft.AspNetCore.Mvc;
 public class TestPdfController : ControllerBase
 {
     private readonly IPdfProcessorService _pdfService;
+    private readonly IEmbeddingService _embeddingService;
 
-    public TestPdfController(IPdfProcessorService pdfService)
+    public TestPdfController(IPdfProcessorService pdfService, IEmbeddingService embeddingService)
     {
         _pdfService = pdfService;
+        _embeddingService = embeddingService;
     }
 
-    [HttpGet]
-    public IActionResult Test()
+    [HttpGet("embed")]
+    public async Task<IActionResult> TestEmbedding(CancellationToken cancellationToken)
     {
-        var path = @"D:\GameProject_Report_NguyenChiThanh.pdf";
+        var path = @"D:\tv.pdf";
 
         if (!_pdfService.ValidatePdf(path))
             return BadRequest("Invalid PDF");
 
         var text = _pdfService.ExtractCleanText(path);
 
-        var chunks = _pdfService.ChunkSemantic(text,4000, 400);
+        var chunks = _pdfService.ChunkSemantic(text, 2000, 100);
+
+        var embeddings = await _embeddingService.EmbedChunksAsync(chunks, cancellationToken);
 
         return Ok(new
         {
             textLength = text.Length,
-            textContents = text,
-
-       
-            chunks = chunks.Count,
-    
-            //show all text in chunks
-            chunkContents = chunks
-
+            chunksCount = chunks.Count,
+            embeddingsCount = embeddings.Count,
+         
+            sampleVector = embeddings.ToList()
         });
     }
 }
