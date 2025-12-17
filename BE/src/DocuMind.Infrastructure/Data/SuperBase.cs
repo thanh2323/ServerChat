@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DocuMind.Infrastructure.Data
 {
-    public class SqlServer : DbContext
+    public class SuperBase : DbContext
     {
-        public SqlServer(DbContextOptions<SqlServer> options)
+        public SuperBase(DbContextOptions<SuperBase> options)
        : base(options)
         {
         }
@@ -25,6 +25,7 @@ namespace DocuMind.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasDefaultSchema("public");
             base.OnModelCreating(modelBuilder);
 
             // ===================================================================
@@ -59,7 +60,7 @@ namespace DocuMind.Infrastructure.Data
                     .HasDefaultValue(false);
 
                 entity.Property(e => e.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 // Relationships
                 entity.HasMany(e => e.Documents)
@@ -97,7 +98,7 @@ namespace DocuMind.Infrastructure.Data
                     .HasDefaultValue(DocumentStatus.Pending);
 
                 entity.Property(e => e.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 // Indexes for performance
                 entity.HasIndex(e => e.UserId);
@@ -117,10 +118,10 @@ namespace DocuMind.Infrastructure.Data
                     .HasMaxLength(500);
 
                 entity.Property(e => e.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.Property(e => e.LastActiveAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 // Indexes
                 entity.HasIndex(e => e.UserId);
@@ -142,7 +143,7 @@ namespace DocuMind.Infrastructure.Data
                 entity.HasKey(e => new { e.SessionId, e.DocumentId });
 
                 entity.Property(e => e.AddedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 // Relationships
                 entity.HasOne(e => e.Session)
@@ -170,7 +171,7 @@ namespace DocuMind.Infrastructure.Data
                     .IsRequired();
 
                 entity.Property(e => e.Timestamp)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 // Indexes
                 entity.HasIndex(e => e.SessionId);

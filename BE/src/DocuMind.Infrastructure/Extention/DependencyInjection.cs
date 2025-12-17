@@ -28,10 +28,17 @@ namespace DocuMind.Infrastructure.Extention
         public static IServiceCollection AddInfrastructure(
            this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<SqlServer>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
-           
+            services.AddDbContext<SuperBase>(options =>
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"),
+                x =>
+                {
+                    x.MigrationsHistoryTable("__EFMigrationsHistory", "public");
+                    x.CommandTimeout(120);
+                })
+               );
+
+
 
             // Register repositories
             services.AddScoped<IDocumentRepository, DocumentRepository>();
@@ -41,7 +48,7 @@ namespace DocuMind.Infrastructure.Extention
 
 
             // JWT & Password Services
- 
+
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
