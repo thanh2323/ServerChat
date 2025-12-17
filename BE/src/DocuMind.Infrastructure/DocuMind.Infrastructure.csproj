@@ -10,6 +10,7 @@
     <PackageReference Include="Google.GenAI" Version="0.8.0" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.14" />
     <PackageReference Include="Hangfire.Core" Version="1.8.14" />
+    <PackageReference Include="Hangfire.PostgreSql" Version="1.20.13" />
     <PackageReference Include="Hangfire.SqlServer" Version="1.8.14" />
     <PackageReference Include="itext7" Version="9.4.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9" />

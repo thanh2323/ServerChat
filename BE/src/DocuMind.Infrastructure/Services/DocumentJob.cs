@@ -107,6 +107,7 @@ namespace DocuMind.Infrastructure.Services
               await _vectorDb.UpsertVectorsAsync(documentId, chunks, vectors);
                 _logger.LogInformation("✅ Vectors stored successfully");
 
+
                /* // Step 7: Generate summary using LLM
                 _logger.LogInformation("📝 Generating document summary...");
                 var summary = await GenerateSummaryAsync(cleanText, cancellationToken);
