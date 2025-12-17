@@ -1,13 +1,17 @@
 ﻿
+using System.Net.Http.Headers;
 using DocuMind.Application.Interface.IAuth;
+using DocuMind.Application.Interface.IDocument;
 using DocuMind.Application.Interface.IUser;
 using DocuMind.Application.Services.AuthService;
+using DocuMind.Application.Services.DocumentService;
 using DocuMind.Application.Services.UserService;
 using DocuMind.Core.Interfaces.IAuth;
 using DocuMind.Core.Interfaces.IBackgroundJob;
 using DocuMind.Core.Interfaces.IEmbedding;
 using DocuMind.Core.Interfaces.IPdf;
 using DocuMind.Core.Interfaces.IRepo;
+using DocuMind.Core.Interfaces.IStorage;
 using DocuMind.Core.Interfaces.IVectorDb;
 using DocuMind.Infrastructure.Data;
 using DocuMind.Infrastructure.Repositories;
@@ -65,14 +69,33 @@ namespace DocuMind.Infrastructure.Extention
             // Configure HttpClient for Ollama
             services.AddHttpClient("Ollama", client =>
             {
-                client.BaseAddress = new Uri(configuration["Ollama:BaseUrl"] ?? "http://localhost:11434");
+                client.BaseAddress = new Uri(configuration["Ollama:BaseUrl"]!);
                 client.Timeout = TimeSpan.FromSeconds(int.TryParse(configuration["Ollama:TimeoutSeconds"], out var timeout) ? timeout : 60);
 
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
             });
 
             // Vector DB Service
-            services.AddScoped<IVectorDbService, QdrantService>();
+            services.AddScoped<IVectorDbService,QdrantService>();
+
+            // Document Service
+            services.AddScoped<IDocumentService, DocumentService>();
+
+            //Store Service (Superbase)
+            services.AddScoped<IStorageService, SupabaseStorageService>();
+            services.AddSingleton(provider =>
+            {
+                var config = provider.GetRequiredService<IConfiguration>();
+
+                return new Supabase.Client(
+                    config["Supabase:Url"]!,
+                    config["Supabase:ApiKey"],
+                    new Supabase.SupabaseOptions
+                    {
+                        AutoConnectRealtime = false
+                    });
+            });
+
             return services;
         }
     }

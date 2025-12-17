@@ -75,7 +75,7 @@ namespace DocuMind.Application.Services.UserService
                 {
                     Id = d.Id,
                     FileName = d.FileName,
-                    Status = d.Status.ToString(),
+                    Status = d.Status,
                     CreatedAt = d.CreatedAt
                 }),
 
