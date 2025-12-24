@@ -1,4 +1,4 @@
-﻿using DocuMind.Core.Interfaces.IEmbedding;
+﻿/*using DocuMind.Core.Interfaces.IEmbedding;
 using DocuMind.Core.Interfaces.IPdf;
 using DocuMind.Infrastructure.Extention;
 using Microsoft.Extensions.Configuration;
@@ -22,7 +22,7 @@ var config = new ConfigurationBuilder()
 
 // 2. Setup Dependency Injection
 var services = new ServiceCollection();
-services.AddLogging(builder => 
+services.AddLogging(builder =>
 {
     builder.AddConsole();
     builder.SetMinimumLevel(LogLevel.Warning); // Less noise
@@ -39,7 +39,7 @@ var provider = services.BuildServiceProvider();
 var pdfService = provider.GetRequiredService<IPdfProcessorService>();
 var embeddingService = provider.GetRequiredService<IEmbeddingService>();
 
-try 
+try
 {
     // ==========================================
     // STEP 1: LOAD & EMBED FILE
@@ -60,7 +60,7 @@ try
 
     var chunks = pdfService.ChunkSemantic(rawText, 500, 50);
     Console.WriteLine($"    Created {chunks.Count} chunks.");
-    
+
     Console.Write("    Generating embeddings... ");
     // EmbedChunksAsync returns IReadOnlyList<float[]>
     var vectors = await embeddingService.EmbedChunksAsync(chunks);
@@ -98,10 +98,10 @@ try
 
         // 2. Rank by Cosine Similarity
         var results = database
-            .Select(x => new 
-            { 
-                Similarity = CosineSimilarity(queryVector, x.Vector), 
-                Chunk = x.Text 
+            .Select(x => new
+            {
+                Similarity = CosineSimilarity(queryVector, x.Vector),
+                Chunk = x.Text
             })
             .OrderByDescending(x => x.Similarity)
             .Take(3)
@@ -115,7 +115,7 @@ try
             Console.WriteLine($"Similarity: {res.Similarity:F4} | {ExpectationLabel(res.Similarity)}");
             Console.WriteLine("Chunk:");
             Console.WriteLine(res.Chunk);
- 
+
             Console.WriteLine("========================================");
         }
         Console.WriteLine();
@@ -147,3 +147,4 @@ static string ExpectationLabel(double similarity)
     if (similarity >= 0.50) return "⚠️ Weak Match";
     return "❌ Irrelevant (Unexpected)";
 }
+*/

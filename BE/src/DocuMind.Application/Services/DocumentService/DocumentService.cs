@@ -18,7 +18,7 @@ using Microsoft.Extensions.Options;
 
 namespace DocuMind.Application.Services.DocumentService
 {
-    public class DocumentService : IDocumentService
+    public class DocumentService :  IDocumentService
     {
         private readonly IBackgroundJobService _backgroundJobService;
         private readonly IVectorDbService _vectorDbService;
@@ -46,9 +46,27 @@ namespace DocuMind.Application.Services.DocumentService
             throw new NotImplementedException();
         }
 
-        public Task<ServiceResult<DocumentItemDto>> GetByIdAsync(int userId, int documentId, bool isAdmin)
+        public async Task<ServiceResult<List<DocumentItemDto>>> GetByIdsAsync(int userId, List<int> documentIds)
         {
-            throw new NotImplementedException();
+            var documents = await _documentRepository.GetDocumentsAsync(documentIds, userId);
+
+            var errorDocument = documents.Any(d => d.Status == DocumentStatus.Error || d.Status == DocumentStatus.Pending);
+            if (errorDocument)
+            {
+                return ServiceResult<List<DocumentItemDto>>.Fail("Some documents are not ready yet");
+            }
+
+            var result = documents.Select(d => new DocumentItemDto
+           {
+               Id = d.Id,
+               FileName = d.FileName,
+               FileSize = d.FileSize,
+               Status = d.Status,
+               CreatedAt = d.CreatedAt
+           }).ToList();
+
+            return ServiceResult<List<DocumentItemDto>>.Ok(result);
+
         }
 
         public async Task<ServiceResult<DocumentItemDto>> UploadDocument(UploadDocumentDto dto, int userId)

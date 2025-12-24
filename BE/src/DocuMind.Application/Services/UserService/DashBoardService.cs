@@ -79,7 +79,7 @@ namespace DocuMind.Application.Services.UserService
                     CreatedAt = d.CreatedAt
                 }),
 
-                RecentChats = recentChats.Select(c => new ChatItemDto
+                RecentChats = recentChats.Select(c => new SessionDto
                 {
                     Id = c.Id,
                     Title = c.Title,

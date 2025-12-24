@@ -2,13 +2,16 @@
 using System.Net.Http.Headers;
 using DocuMind.Application.Interface.IAuth;
 using DocuMind.Application.Interface.IDocument;
+using DocuMind.Application.Interface.IRag;
 using DocuMind.Application.Interface.IUser;
 using DocuMind.Application.Services.AuthService;
 using DocuMind.Application.Services.DocumentService;
+using DocuMind.Application.Services.Rag;
 using DocuMind.Application.Services.UserService;
 using DocuMind.Core.Interfaces.IAuth;
 using DocuMind.Core.Interfaces.IBackgroundJob;
 using DocuMind.Core.Interfaces.IEmbedding;
+using DocuMind.Core.Interfaces.ILLM;
 using DocuMind.Core.Interfaces.IPdf;
 using DocuMind.Core.Interfaces.IRepo;
 using DocuMind.Core.Interfaces.IStorage;
@@ -16,6 +19,7 @@ using DocuMind.Core.Interfaces.IVectorDb;
 using DocuMind.Infrastructure.Data;
 using DocuMind.Infrastructure.Repositories;
 using DocuMind.Infrastructure.Services;
+using Google.GenAI;
 using iText.StyledXmlParser.Jsoup.Parser;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -56,7 +60,7 @@ namespace DocuMind.Infrastructure.Extention
             // PDF Pre-Processor Service
             services.AddScoped<IPdfProcessorService, PdfProcessorService>();
 
-            // Embedding Service With Gemini
+            // Embedding Service With Model Loaded from Ollama
             services.AddScoped<IEmbeddingService, OllamaEmbeddingService>();
 
             // Configure HttpClient for Ollama
@@ -68,6 +72,9 @@ namespace DocuMind.Infrastructure.Extention
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
             });
 
+
+        
+            
             // Vector DB Service
             services.AddScoped<IVectorDbService,QdrantService>();
 
@@ -76,6 +83,7 @@ namespace DocuMind.Infrastructure.Extention
 
             //Store Service (Superbase)
             services.AddScoped<IStorageService, SupabaseStorageService>();
+        
             services.AddSingleton(provider =>
             {
                 var config = provider.GetRequiredService<IConfiguration>();
@@ -88,7 +96,13 @@ namespace DocuMind.Infrastructure.Extention
                         AutoConnectRealtime = false
                     });
             });
+            // LLM Service
+            services.AddScoped<ILlmService, GeminiLlmService>();
+            // RAG Service
+            services.AddScoped<IRagService, RagService>();
 
+            // Document Service
+            services.AddScoped<IDocumentService, DocumentService>();
             return services;
         }
     }
