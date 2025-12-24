@@ -188,6 +188,11 @@ namespace DocuMind.Infrastructure.Services
         {
             try
             {
+                var exists = await CollectionExistsAsync();
+                if (!exists)
+                {
+                    throw new InvalidOperationException($"Collection '{_collectionName}' does not exist. Please initialize it first.");
+                }
                 if (chunks.Count != vectors.Count)
                 {
                     throw new ArgumentException("Number of chunks must match number of vectors");

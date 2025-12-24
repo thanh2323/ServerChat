@@ -11,10 +11,10 @@ namespace DocuMind.Infrastructure.Repositories
 {
     public class GenericRepository<T> : IRepository<T> where T : class
     {
-        protected readonly SqlServer _context;
+        protected readonly SuperBase _context;
         protected readonly DbSet<T> _dbSet;
 
-        public GenericRepository(SqlServer context)
+        public GenericRepository(SuperBase context)
         {
             _context = context;
             _dbSet = _context.Set<T>();

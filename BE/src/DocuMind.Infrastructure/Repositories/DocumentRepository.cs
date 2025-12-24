@@ -14,7 +14,7 @@ namespace DocuMind.Infrastructure.Repositories
 {
     public class DocumentRepository : GenericRepository<Document>, IDocumentRepository
     {
-        public DocumentRepository(SqlServer context) : base(context)
+        public DocumentRepository(SuperBase context) : base(context)
         {
         }
 
