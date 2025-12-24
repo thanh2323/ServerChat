@@ -95,54 +95,70 @@ namespace DocuMind.Application.Services.Rag
 
         private string BuildContext(List<SearchResult> searchResults)
         {
-            var contextBuilder = new StringBuilder();
-            contextBuilder.AppendLine("Thông tin từ tài liệu:");
-            contextBuilder.AppendLine();
+            var sb = new StringBuilder();
+
+            sb.AppendLine("=== CONTEXT (Retrieved from documents) ===");
+            sb.AppendLine();
+
+            if (searchResults == null || searchResults.Count == 0)
+            {
+                sb.AppendLine("No relevant document content was found.");
+                return sb.ToString();
+            }
 
             for (int i = 0; i < searchResults.Count; i++)
             {
                 var result = searchResults[i];
-                contextBuilder.AppendLine($"[Nguồn {i + 1}]");
-                contextBuilder.AppendLine(result.ChunkText);
-                contextBuilder.AppendLine();
+
+                sb.AppendLine($"[Source {i + 1}]");
+                sb.AppendLine(result.ChunkText.Trim());
+                sb.AppendLine();
             }
 
-            return contextBuilder.ToString();
+            return sb.ToString();
         }
 
-        private string BuildPrompt(string question, string documentContext, List<string>? conversationHistory)
+
+        private string BuildPrompt(
+       string question,
+       string documentContext,
+       List<string>? conversationHistory)
         {
-            var promptBuilder = new StringBuilder();
+            var sb = new StringBuilder();
 
-            // System instruction
-            promptBuilder.AppendLine("Bạn là trợ lý AI thông minh, chuyên phân tích tài liệu và trả lời câu hỏi.");
-            promptBuilder.AppendLine(); 
+            // SYSTEM
+            sb.AppendLine("=== SYSTEM ===");
+            sb.AppendLine("You are an AI assistant specialized in analyzing documents.");
+            sb.AppendLine("Answer the question strictly based on the information provided in the CONTEXT section.");
+            sb.AppendLine("If the answer is not present in the documents, explicitly say:");
+            sb.AppendLine("\"This information is not available in the provided documents.\"");
+            sb.AppendLine();
 
-            if(conversationHistory != null && conversationHistory.Count > 0)
+            // CONVERSATION HISTORY (optional)
+            if (conversationHistory != null && conversationHistory.Count > 0)
             {
-                promptBuilder.AppendLine("Lịch sử hội thoại gần đây:");
+                sb.AppendLine("=== CONVERSATION HISTORY ===");
                 foreach (var message in conversationHistory)
                 {
-                    promptBuilder.AppendLine(message);
+                    sb.AppendLine(message);
                 }
-                promptBuilder.AppendLine();
-            }   
-            // Document context
-            promptBuilder.AppendLine(documentContext);
+                sb.AppendLine();
+            }
 
-            // Instructions
-            promptBuilder.AppendLine("Hướng dẫn:");
-            promptBuilder.AppendLine("- Chỉ trả lời dựa trên thông tin trong tài liệu");
-            promptBuilder.AppendLine("- Nếu không có thông tin, nói rõ 'Thông tin này không có trong tài liệu'");
-            promptBuilder.AppendLine("- Trả lời bằng tiếng Việt, ngắn gọn và chính xác");
-            promptBuilder.AppendLine();
+            // CONTEXT
+            sb.AppendLine(documentContext);
+            sb.AppendLine();
 
-            // Question
-            promptBuilder.AppendLine($"Câu hỏi: {question}");
-            promptBuilder.AppendLine();
-            promptBuilder.AppendLine("Trả lời:");
+            // QUESTION
+            sb.AppendLine("=== QUESTION ===");
+            sb.AppendLine(question);
+            sb.AppendLine();
 
-            return promptBuilder.ToString();
+            // ANSWER
+            sb.AppendLine("=== ANSWER ===");
+
+            return sb.ToString();
         }
+
     }
 }

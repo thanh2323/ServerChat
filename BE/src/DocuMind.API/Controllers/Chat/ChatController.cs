@@ -18,7 +18,7 @@ namespace DocuMind.API.Controllers.Chat
         private readonly IRagService _ragService;
         private readonly IChatService _chatService;
         private readonly ILogger<ChatController> _logger;
-        public ChatController(IRagService ragService,IChatService chatService , ILogger<ChatController> logger)
+        public ChatController(IRagService ragService, IChatService chatService, ILogger<ChatController> logger)
         {
             _chatService = chatService;
             _ragService = ragService;
@@ -26,16 +26,32 @@ namespace DocuMind.API.Controllers.Chat
         }
 
         [HttpPost("create-chat")]
-        public async Task<IActionResult> CreateChat([FromBody] CreateSessionDto dto )
+        public async Task<IActionResult> CreateChat([FromBody] CreateSessionDto dto)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            var result =await _chatService.CreateChatAsync(int.Parse(userId!), dto);
+            var result = await _chatService.CreateChatAsync(int.Parse(userId!), dto);
 
             if (!result.Success)
                 return BadRequest(ApiResponse<SessionDto>.ErrorResponse(result.Message));
 
             return Ok(ApiResponse<SessionDto>.SuccessResponse(result.Data!, result.Message));
         }
+
+        [HttpPost("sessions/{sessionId}/messages")]
+
+        public async Task<IActionResult> SendMessage(int sessionId, [FromBody] SendMessageDto dto)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var result = await _chatService.SendMessageAsync(int.Parse(userId!), sessionId, dto);
+
+            if (!result.Success)
+                return BadRequest(ApiResponse<ChatResponseDto>.ErrorResponse(result.Message));
+
+            return Ok(
+                ApiResponse<ChatResponseDto>.SuccessResponse(result.Data!));
+        }
+
     }
 }
