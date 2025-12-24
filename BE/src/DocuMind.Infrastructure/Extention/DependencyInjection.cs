@@ -1,10 +1,12 @@
 ﻿
 using System.Net.Http.Headers;
 using DocuMind.Application.Interface.IAuth;
+using DocuMind.Application.Interface.IChat;
 using DocuMind.Application.Interface.IDocument;
 using DocuMind.Application.Interface.IRag;
 using DocuMind.Application.Interface.IUser;
 using DocuMind.Application.Services.AuthService;
+using DocuMind.Application.Services.ChatService;
 using DocuMind.Application.Services.DocumentService;
 using DocuMind.Application.Services.Rag;
 using DocuMind.Application.Services.UserService;
@@ -41,6 +43,7 @@ namespace DocuMind.Infrastructure.Extention
             services.AddScoped<IDocumentRepository, DocumentRepository>();
             services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<ISessionDocumentRepository, SessionDocumentRepository>();
             services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 
 
@@ -103,6 +106,9 @@ namespace DocuMind.Infrastructure.Extention
 
             // Document Service
             services.AddScoped<IDocumentService, DocumentService>();
+
+            // Chat Service
+            services.AddScoped<IChatService, ChatService>();
             return services;
         }
     }

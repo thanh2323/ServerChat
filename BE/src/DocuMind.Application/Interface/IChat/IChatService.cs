@@ -8,9 +8,8 @@ using DocuMind.Application.DTOs.Chat;
 
 namespace DocuMind.Application.Interface.IChat
 {
-    interface IChatService
+   public interface IChatService
     {
-        Task<ServiceResult<SessionDto>> CreateChatAsync(int userId,CreateSessionDto dto
-  );
+        Task<ServiceResult<SessionDto>> CreateChatAsync(int userId,CreateSessionDto dto);
     }
 }

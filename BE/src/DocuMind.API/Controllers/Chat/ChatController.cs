@@ -4,8 +4,10 @@ using DocuMind.Application.DTOs.Chat;
 using DocuMind.Application.DTOs.Common;
 using DocuMind.Application.DTOs.Document;
 using DocuMind.Application.DTOs.User.Dashboard;
+using DocuMind.Application.Interface.IChat;
 using DocuMind.Application.Interface.IDocument;
 using DocuMind.Application.Interface.IRag;
+using DocuMind.Core.Interfaces.IRepo;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DocuMind.API.Controllers.Chat
@@ -14,12 +16,11 @@ namespace DocuMind.API.Controllers.Chat
     public class ChatController : Controller
     {
         private readonly IRagService _ragService;
-        private readonly IDocumentService _documentService;
+        private readonly IChatService _chatService;
         private readonly ILogger<ChatController> _logger;
-        public ChatController(IRagService ragService,IDocumentService documentService , ILogger<ChatController> logger)
+        public ChatController(IRagService ragService,IChatService chatService , ILogger<ChatController> logger)
         {
-
-            _documentService = documentService;
+            _chatService = chatService;
             _ragService = ragService;
             _logger = logger;
         }
@@ -29,12 +30,12 @@ namespace DocuMind.API.Controllers.Chat
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            var documentsResult =await _documentService.GetByIdsAsync(int.Parse(userId!), dto.DocumentIds);
+            var result =await _chatService.CreateChatAsync(int.Parse(userId!), dto);
 
-            if (!documentsResult.Success)
-                return BadRequest(ApiResponse<List<DocumentItemDto>>.ErrorResponse(documentsResult.Message));
+            if (!result.Success)
+                return BadRequest(ApiResponse<SessionDto>.ErrorResponse(result.Message));
 
-            return Ok(ApiResponse<List<DocumentItemDto>>.SuccessResponse(documentsResult.Data!, documentsResult.Message));
+            return Ok(ApiResponse<SessionDto>.SuccessResponse(result.Data!, result.Message));
         }
     }
 }
