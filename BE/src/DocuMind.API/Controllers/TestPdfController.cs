@@ -1,6 +1,7 @@
 ﻿using DocuMind.Application.DTOs.Document;
 using DocuMind.Application.Interface.IDocument;
 using DocuMind.Core.Interfaces.IEmbedding;
+using DocuMind.Core.Interfaces.ILLM;
 using DocuMind.Core.Interfaces.IPdf;
 using DocuMind.Core.Interfaces.IVectorDb;
 using Microsoft.AspNetCore.Mvc;
@@ -13,8 +14,12 @@ public class TestPdfController : ControllerBase
     private readonly IEmbeddingService _embeddingService;
     private readonly IVectorDbService _qdrantService;
     private readonly IDocumentService _documentService;
-    public TestPdfController(IDocumentService documentService,IPdfProcessorService pdfService, IEmbeddingService embeddingService, IVectorDbService qdrantService)
+
+    private readonly ILlmService _llm;
+
+    public TestPdfController(ILlmService llm,IDocumentService documentService, IPdfProcessorService pdfService, IEmbeddingService embeddingService, IVectorDbService qdrantService)
     {
+        _llm = llm;
         _documentService = documentService;
         _pdfService = pdfService;
         _embeddingService = embeddingService;
@@ -22,28 +27,28 @@ public class TestPdfController : ControllerBase
     }
 
     [HttpGet("embed")]
-   /* public async Task<IActionResult> TestEmbedding(CancellationToken cancellationToken)
-    {
-        var path = @"D:\tv.pdf";
+    /* public async Task<IActionResult> TestEmbedding(CancellationToken cancellationToken)
+     {
+         var path = @"D:\tv.pdf";
 
-        if (!_pdfService.ValidatePdf(path))
-            return BadRequest("Invalid PDF");
+         if (!_pdfService.ValidatePdf(path))
+             return BadRequest("Invalid PDF");
 
-        var text = _pdfService.ExtractCleanText(path);
+         var text = _pdfService.ExtractCleanText(path);
 
-        var chunks = _pdfService.ChunkSemantic(text, 2000, 100);
+         var chunks = _pdfService.ChunkSemantic(text, 2000, 100);
 
-        var embeddings = await _embeddingService.EmbedChunksAsync(chunks, cancellationToken);
+         var embeddings = await _embeddingService.EmbedChunksAsync(chunks, cancellationToken);
 
-        return Ok(new
-        {
-            textLength = text.Length,
-            chunksCount = chunks.Count,
-            embeddingsCount = embeddings.Count,
+         return Ok(new
+         {
+             textLength = text.Length,
+             chunksCount = chunks.Count,
+             embeddingsCount = embeddings.Count,
 
-            sampleVector = embeddings.ToList()
-        });
-    }*/
+             sampleVector = embeddings.ToList()
+         });
+     }*/
 
     [HttpPost("init-data")]
     public async Task<IActionResult> InitData()
@@ -113,6 +118,25 @@ public class TestPdfController : ControllerBase
             return BadRequest(result.Message);
 
         return Ok(result.Data);
+    }
+    [HttpPost("ask")]
+    public async Task<IActionResult> Ask([FromBody] PromptDto request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Prompt))
+            return BadRequest("Prompt required!");
+
+        var result = await _llm.AskAsync(request.Prompt, ct);
+
+        if (string.IsNullOrWhiteSpace(result))
+            return Ok("No LLM response returned");
+
+        return Ok(result);
+    }
+
+
+    public class PromptDto
+    {
+        public string Prompt { get; set; } = "";
     }
 }
 
