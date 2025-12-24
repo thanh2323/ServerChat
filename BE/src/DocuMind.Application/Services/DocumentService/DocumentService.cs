@@ -13,6 +13,7 @@ using DocuMind.Core.Interfaces.IBackgroundJob;
 using DocuMind.Core.Interfaces.IRepo;
 using DocuMind.Core.Interfaces.IStorage;
 using DocuMind.Core.Interfaces.IVectorDb;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -21,12 +22,15 @@ namespace DocuMind.Application.Services.DocumentService
     public class DocumentService :  IDocumentService
     {
         private readonly IBackgroundJobService _backgroundJobService;
-        private readonly IVectorDbService _vectorDbService;
+        private readonly IChatSessionRepository _chatSessionRepository;
+        private readonly ISessionDocumentRepository _sessionDocumentRepository;
         private readonly FileUploadOptions _options;
         private readonly IStorageService _storageService;
         private readonly IDocumentRepository _documentRepository;
         private readonly ILogger<DocumentService> _logger;
         public DocumentService(
+            ISessionDocumentRepository sessionDocumentRepository,
+            IChatSessionRepository chatSessionRepository,
             IStorageService storageService,
             IBackgroundJobService backgroundJobService,
             IDocumentRepository documentRepository,
@@ -34,10 +38,12 @@ namespace DocuMind.Application.Services.DocumentService
             IVectorDbService vectorDbService,
             ILogger<DocumentService> logger)
         {
+            _sessionDocumentRepository = sessionDocumentRepository;
+            _chatSessionRepository = chatSessionRepository;
             _documentRepository = documentRepository;
             _storageService = storageService;
             _backgroundJobService = backgroundJobService;
-            _vectorDbService = vectorDbService;
+      
             _options = options.Value;
             _logger = logger;
         }
@@ -69,9 +75,12 @@ namespace DocuMind.Application.Services.DocumentService
 
         }
 
-        public async Task<ServiceResult<DocumentItemDto>> UploadDocument(UploadDocumentDto dto, int userId)
+        public async Task<ServiceResult<DocumentItemDto>> UploadDocument(int userId,int sessionId, UploadDocumentDto dto)
         {
-            var file = dto.File ?? throw new ArgumentException("No file uploaded");
+            var file = dto.File;
+
+            if (file == null || file.Length == 0)
+                return ServiceResult<DocumentItemDto>.Fail("No file uploaded");
 
             var extension = Path.GetExtension(file.FileName).ToLower();
             if (!_options.AllowedExtensions.Contains(extension))
@@ -81,7 +90,12 @@ namespace DocuMind.Application.Services.DocumentService
                 throw new ArgumentException($"File exceeds {_options.MaxFileSizeMB}MB");
 
 
-            var supabasePath = await _storageService.UploadAsync(dto.File.OpenReadStream(), file.FileName, userId);
+            var session = await _chatSessionRepository.GetByIdAsync(sessionId);
+            if (session == null || session.UserId != userId)
+                return ServiceResult<DocumentItemDto>.Fail("Invalid chat session");
+
+
+            var supabasePath = await _storageService.UploadAsync(file.OpenReadStream(), file.FileName, userId);
            
             var document = new Document
             {
@@ -95,6 +109,16 @@ namespace DocuMind.Application.Services.DocumentService
 
             await _documentRepository.AddAsync(document);
             await _documentRepository.SaveChangesAsync();
+
+            var sessionDocument = new SessionDocument
+            {
+                SessionId = sessionId,
+                DocumentId = document.Id,
+                AddedAt = DateTime.UtcNow
+            };
+
+            await _sessionDocumentRepository.AddAsync(sessionDocument);
+            await _sessionDocumentRepository.SaveChangesAsync();
 
             _backgroundJobService.EnqueueDocumentProcessing(document.Id);
 

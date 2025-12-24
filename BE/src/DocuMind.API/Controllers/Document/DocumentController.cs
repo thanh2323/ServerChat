@@ -10,9 +10,10 @@ using Google.GenAI;
 
 namespace DocuMind.API.Controllers.Document
 {
-    [Route("api/[controller]")]
+
     [ApiController]
     [Authorize]
+    [Route("api/[controller]")]
     public class DocumentController : ControllerBase
     {
         private readonly IDocumentService _documentService;
@@ -21,12 +22,12 @@ namespace DocuMind.API.Controllers.Document
         {
             _documentService = documentService;
         }
-        [HttpPost("upload")]
-        public async Task<IActionResult> UploadDocument([FromForm] UploadDocumentDto dto)
+        [HttpPost("sessions/{sessionId}/upload")]
+        public async Task<IActionResult> UploadDocument(int sessionId,[FromForm] UploadDocumentDto dto)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
           
-            var result = await _documentService.UploadDocument(dto, int.Parse(userId!));
+            var result = await _documentService.UploadDocument(int.Parse(userId!), sessionId, dto);
 
             if (!result.Success)
                 return BadRequest(ApiResponse<DocumentItemDto>.ErrorResponse(result.Message));

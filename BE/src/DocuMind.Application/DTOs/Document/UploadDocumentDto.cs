@@ -12,5 +12,6 @@ namespace DocuMind.Application.DTOs.Document
     {
         [Required]
         public IFormFile File { get; set; } = null!;
+
     }
 }
