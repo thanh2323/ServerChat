@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DocuMind.Application.DTOs.Chat;
 using DocuMind.Application.DTOs.Common;
+using DocuMind.Application.DTOs.Document;
 using DocuMind.Application.Interface.IChat;
 using DocuMind.Application.Interface.IDocument;
 using DocuMind.Application.Interface.IRag;
@@ -130,6 +131,70 @@ namespace DocuMind.Application.Services.ChatService
             };
 
             return ServiceResult<ChatResponseDto>.Ok(response);
+        }
+
+        public async Task<ServiceResult<List<SessionDto>>> GetSessionsAsync(int userId)
+        {
+            try
+            {
+                var sessions = await _chatSessionRepository.GetByUserIdAsync(userId);
+
+                var sessionDtos = sessions.Select(s => new SessionDto
+                {
+                    Id = s.Id,
+                    Title = s.Title,
+                    CreatedAt = s.CreatedAt,
+                    LastActiveAt = s.LastActiveAt, 
+                }).ToList();
+
+                return ServiceResult<List<SessionDto>>.Ok(sessionDtos);
+            }
+            catch (Exception ex)
+            {
+                // In a real app, log the exception
+                return ServiceResult<List<SessionDto>>.Fail(ex.Message);
+            }
+        }
+
+        public async Task<ServiceResult<SessionDto>> GetSessionAsync(int userId, int sessionId)
+        {
+            try
+            {
+                var session = await _chatSessionRepository.GetWithDocumentsAsync(sessionId);
+
+                if (session == null)
+                {
+                    return ServiceResult<SessionDto>.Fail("Session not found");
+                }
+
+                if (session.UserId != userId)
+                {
+                    return ServiceResult<SessionDto>.Fail("Access denied");
+                }
+
+                var sessionDto = new SessionDto
+                {
+                    Id = session.Id,
+                    Title = session.Title,
+                    CreatedAt = session.CreatedAt,
+                    LastActiveAt = session.LastActiveAt,
+                    MessageCount = session.Messages.Count,
+                    Documents = session.SessionDocuments.Select(sd => new DocumentItemDto
+                    {
+                        Id = sd.DocumentId,
+                        FileName = sd.Document != null ? sd.Document.FileName : string.Empty,
+                        Status = sd.Document != null ? sd.Document.Status : Core.Enum.DocumentStatus.Pending,
+                        FileSize = sd.Document != null ? sd.Document.FileSize : 0,
+                        CreatedAt = sd.Document != null ? sd.Document.CreatedAt : DateTime.MinValue
+                    }).ToList()
+                };
+
+                return ServiceResult<SessionDto>.Ok(sessionDto);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<SessionDto>.Fail(ex.Message);
+            }
         }
     }
 }
