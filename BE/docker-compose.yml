@@ -1,0 +1,16 @@
+services:
+  documind-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: documind-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount the development settings so changes on host are reflected and secrets are available
+      - ./src/DocuMind.API/appsettings.Development.json:/app/appsettings.Development.json:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Allows access to host machine's localhost
