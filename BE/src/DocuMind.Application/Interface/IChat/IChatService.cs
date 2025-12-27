@@ -14,5 +14,6 @@ namespace DocuMind.Application.Interface.IChat
         Task<ServiceResult<List<SessionDto>>> GetSessionsAsync(int userId);
         Task<ServiceResult<SessionDto>> GetSessionAsync(int userId, int sessionId);
         Task<ServiceResult<ChatResponseDto>> SendMessageAsync(int userId, int sessionId, SendMessageDto dto);
+        Task<ServiceResult<List<MessageDto>>> GetMessagesAsync(int userId, int sessionId);
     }
 }

@@ -74,6 +74,30 @@ namespace DocuMind.Application.Services.DocumentService
             return ServiceResult<List<DocumentItemDto>>.Ok(result);
 
         }
+        
+        public async Task<ServiceResult<DocumentItemDto>> GetStatusAsync(int userId, int documentId)
+        {
+            // Use GetDocumentsAsync but for a single ID
+            var documents = await _documentRepository.GetDocumentsAsync(new List<int> { documentId }, userId);
+            
+            var doc = documents.FirstOrDefault();
+            if (doc == null)
+            {
+                return ServiceResult<DocumentItemDto>.Fail("Document not found");
+            }
+
+            var dto = new DocumentItemDto
+            {
+                Id = doc.Id,
+                FileName = doc.FileName,
+                FileSize = doc.FileSize,
+                Status = doc.Status,
+                CreatedAt = doc.CreatedAt,
+                ProcessedAt = doc.ProcessedAt
+            };
+
+            return ServiceResult<DocumentItemDto>.Ok(dto);
+        }
 
         public async Task<ServiceResult<DocumentItemDto>> UploadDocument(int userId,int sessionId, UploadDocumentDto dto)
         {

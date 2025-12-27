@@ -76,6 +76,17 @@ namespace DocuMind.API.Controllers.Chat
 
             return Ok(ApiResponse<SessionDto>.SuccessResponse(result.Data!, result.Message));
         }
+        [HttpGet("sessions/{sessionId}/messages")]
+        public async Task<IActionResult> GetMessages(int sessionId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _chatService.GetMessagesAsync(int.Parse(userId!), sessionId);
+
+            if (!result.Success)
+                return BadRequest(ApiResponse<List<MessageDto>>.ErrorResponse(result.Message));
+
+            return Ok(ApiResponse<List<MessageDto>>.SuccessResponse(result.Data!, result.Message));
+        }
 
     }
 }

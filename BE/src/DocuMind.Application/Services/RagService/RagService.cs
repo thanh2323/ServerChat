@@ -62,7 +62,7 @@ namespace DocuMind.Application.Services.Rag
             if(relevantResults.Count == 0)
             {
                 _logger.LogWarning("No relevant chunks found");
-                return ServiceResult<RagDto>.Fail("No relevant information found to answer the question.");
+                return ServiceResult<RagDto>.Ok(new RagDto { Answer = "No relevant information found to answer the question." });
                
             }
 

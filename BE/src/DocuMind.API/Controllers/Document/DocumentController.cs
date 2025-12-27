@@ -34,5 +34,16 @@ namespace DocuMind.API.Controllers.Document
 
             return Ok(result.Data);
         }
+        [HttpGet("{id}/status")]
+        public async Task<IActionResult> GetDocumentStatus(int id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _documentService.GetStatusAsync(int.Parse(userId!), id);
+
+            if (!result.Success)
+                return BadRequest(ApiResponse<DocumentItemDto>.ErrorResponse(result.Message));
+
+            return Ok(result.Data);
+        }
     }
 }

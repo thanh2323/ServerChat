@@ -14,6 +14,7 @@ namespace DocuMind.Application.DTOs.Chat
         public DateTime CreatedAt { get; set; }
         public DateTime LastActiveAt { get; set; }
         public int MessageCount { get; set; }
+        public List<MessageDto> Messages { get; set; } = new();
         public List<DocumentItemDto> Documents { get; set; } = new();
     }
 }

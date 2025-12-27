@@ -46,6 +46,22 @@ namespace DocuMind.Infrastructure.Repositories
 
             return session;
         }
+
+        public async Task<ChatSession?> GetWithAllMessagesAsync(int sessionId)
+        {
+            var session = await _context.ChatSessions
+                .FirstOrDefaultAsync(cs => cs.Id == sessionId);
+
+            if (session != null)
+            {
+                session.Messages = await _context.ChatMessages
+                    .Where(m => m.SessionId == sessionId)
+                    .OrderBy(m => m.Timestamp)
+                    .ToListAsync();
+            }
+
+            return session;
+        }
         public async Task<List<ChatSession>> GetRecentChatsAsync(int userId, int take = 5)
         {
             return await _context.ChatSessions

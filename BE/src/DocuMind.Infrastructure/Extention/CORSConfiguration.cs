@@ -17,10 +17,10 @@ namespace DocuMind.Infrastructure.Extention
             {
                 options.AddPolicy("DocuMindCORSPolicy", builder =>
                 {
-                    builder.WithOrigins(allowedOrigins)
+                    builder.AllowAnyOrigin() // Changed for simple dev access
                            .AllowAnyHeader()
-                           .AllowAnyMethod()
-                           .AllowCredentials();
+                           .AllowAnyMethod();
+                           // .AllowCredentials(); // Often conflicts with AllowAnyOrigin
                 });
             });
             return services;

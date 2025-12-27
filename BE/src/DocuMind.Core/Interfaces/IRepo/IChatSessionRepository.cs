@@ -14,5 +14,6 @@ namespace DocuMind.Core.Interfaces.IRepo
 
         Task<IEnumerable<ChatSession>> GetByUserIdAsync(int userId);
         Task<ChatSession?> GetWithRecentMessagesAsync(int sessionId, int count);
+        Task<ChatSession?> GetWithAllMessagesAsync(int sessionId);
     }
 }

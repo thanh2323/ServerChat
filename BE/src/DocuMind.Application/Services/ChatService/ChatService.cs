@@ -85,7 +85,7 @@ namespace DocuMind.Application.Services.ChatService
             };
 
             await _chatMessage.AddAsync(userMessage);
-            await _chatMessage.SaveChangesAsync();
+
 
             var ragResult = await _ragService.AskQuestionAsync(dto.Content, documentIds, sessionId);
 
@@ -103,6 +103,7 @@ namespace DocuMind.Application.Services.ChatService
             };
 
             await _chatMessage.AddAsync(botMessage);
+            await _chatMessage.SaveChangesAsync();
 
             //// 5. Update session activity
             //session.LastActiveAt = DateTime.UtcNow;
@@ -194,6 +195,38 @@ namespace DocuMind.Application.Services.ChatService
             catch (Exception ex)
             {
                 return ServiceResult<SessionDto>.Fail(ex.Message);
+            }
+        }
+            
+        public async Task<ServiceResult<List<MessageDto>>> GetMessagesAsync(int userId, int sessionId)
+        {
+            try
+            {
+                var session = await _chatSessionRepository.GetWithAllMessagesAsync(sessionId);
+
+                if (session == null)
+                {
+                    return ServiceResult<List<MessageDto>>.Fail("Session not found");
+                }
+
+                if (session.UserId != userId)
+                {
+                    return ServiceResult<List<MessageDto>>.Fail("Access denied");
+                }
+
+                var messages = session.Messages.Select(m => new MessageDto
+                {
+                    Id = m.Id,
+                    Content = m.Content,
+                    IsUser = m.IsUser,
+                    Timestamp = m.Timestamp
+                }).OrderBy(m => m.Timestamp).ToList();
+
+                return ServiceResult<List<MessageDto>>.Ok(messages);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<List<MessageDto>>.Fail(ex.Message);
             }
         }
     }
