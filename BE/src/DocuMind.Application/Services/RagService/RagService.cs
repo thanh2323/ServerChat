@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using DocuMind.Application.DTOs.Common;
 using DocuMind.Application.DTOs.Rag;
 using DocuMind.Application.Interface.IRag;
+using DocuMind.Application.Interface.IIntentClassifier;
+using DocuMind.Application.Interface.IPrompt;
+using DocuMind.Core.Enum;
 using DocuMind.Core.Interfaces.IEmbedding;
 using DocuMind.Core.Interfaces.ILLM;
 using DocuMind.Core.Interfaces.IRepo;
@@ -19,64 +22,91 @@ namespace DocuMind.Application.Services.Rag
 {
     public class RagService : IRagService
     {
-
         private readonly IEmbeddingService _embeddingService;
         private readonly IChatSessionRepository _chatRepository;
         private readonly IVectorDbService _vectorDbService;
         private readonly ILlmService _llmService;
+        private readonly IIntentClassifierService _intentClassifier;
+        private readonly IPromptFactory _promptFactory;
         private readonly ILogger<RagService> _logger;
-        private const int TOP_K = 10;
-        private const float SCORE_THRESHOLD = 0.6f;
-
 
         public RagService(
             IEmbeddingService embeddingService,
             IVectorDbService vectorDbService,
             ILlmService llmService,
             IChatSessionRepository chatRepository,
+            IIntentClassifierService intentClassifier,
+            IPromptFactory promptFactory,
             ILogger<RagService> logger)
         {
             _chatRepository = chatRepository;
             _embeddingService = embeddingService;
             _vectorDbService = vectorDbService;
             _llmService = llmService;
+            _intentClassifier = intentClassifier;
+            _promptFactory = promptFactory;
             _logger = logger;
-
-            //Configurable RAG parameters
-        /*   _topK = int.Parse(configuration["RagSettings:TopK"] ?? "5");
-            _scoreThreshold = float.Parse(configuration["RagSettings:ScoreThreshold"] ?? "0.5");*/
         }
+
         public async Task<ServiceResult<RagDto>> AskQuestionAsync(string question, List<int> documentIds, int sessionId, CancellationToken cancellationToken = default)
         {
             var stopWatch = Stopwatch.StartNew();
 
+            // Step 1: Classify Intent
+            var intent = await _intentClassifier.ClassifyIntentAsync(question, cancellationToken);
+            _logger.LogInformation("Processing RAG request with intent: {Intent}", intent);
+
+            // Step 2: Retrieve Documents with intent-aware strategy
             var questionEmbedding = await _embeddingService.EmbedChunkAsync(question, cancellationToken);
+            
+            // Determine search parameters based on intent
+            int topK = intent switch
+            {
+                IntentType.SUMMARY => 20,     // Need more context for summary
+                IntentType.EXPLANATION => 15, // Need moderate context for explanation
+                _ => 10                       // Standard for QA
+            };
 
-            var searchResults = await _vectorDbService.SearchSimilarAsync(questionEmbedding, documentIds, TOP_K);
+            float scoreThreshold = intent switch
+            {
+                IntentType.SUMMARY => 0.5f,   // Looser threshold for summary
+                IntentType.EXPLANATION => 0.6f,
+                _ => 0.65f                    // Stricter for QA precision
+            };
 
-            // Filter results based on score threshold
+            var searchResults = await _vectorDbService.SearchSimilarAsync(questionEmbedding, documentIds, topK);
+
+            // Filter results
             var relevantResults = searchResults
-                .Where(r => r.Score >= SCORE_THRESHOLD)
+                .Where(r => r.Score >= scoreThreshold)
                 .ToList();
 
-            if(relevantResults.Count == 0)
+            if (relevantResults.Count == 0)
             {
-                _logger.LogWarning("No relevant chunks found");
-                return ServiceResult<RagDto>.Ok(new RagDto { Answer = "No relevant information found to answer the question." });
-               
+                _logger.LogWarning("No relevant chunks found with threshold {Threshold}", scoreThreshold);
+                 // If SUMMARY and no results, try fallback with very low threshold
+                if (intent == IntentType.SUMMARY)
+                {
+                     relevantResults = searchResults.Where(r => r.Score >= 0.4f).ToList();
+                }
+                
+                if (relevantResults.Count == 0)
+                {
+                     return ServiceResult<RagDto>.Ok(new RagDto { Answer = "I couldn't find enough relevant information in the documents to answer your question." });
+                }
             }
 
             // Step 3: Get conversation history
-            var recentMessages = await _chatRepository.GetWithRecentMessagesAsync(sessionId, 10);
+            var recentMessages = await _chatRepository.GetWithRecentMessagesAsync(sessionId, 5); // Reduce history to keep context focused
             var conversationHistory = recentMessages?.Messages
-                .Select(m => $"{(m.IsUser ? "User" : "Bot")}: {m.Content}")
+                .Select(m => $"{(m.IsUser ? "User" : "System")}: {m.Content}")
                 .ToList();
 
             // Step 4: Build context
             var context = BuildContext(relevantResults);
 
-            // Step 5: Create prompt
-            var prompt = BuildPrompt(question, context, conversationHistory);
+            // Step 5: Create prompt using Factory
+            var prompt = _promptFactory.GetPrompt(intent, question, context, conversationHistory);
 
             // Step 6: Generate answer
             _logger.LogDebug("Generating answer with Gemini...");
@@ -97,68 +127,20 @@ namespace DocuMind.Application.Services.Rag
         {
             var sb = new StringBuilder();
 
-            sb.AppendLine("=== CONTEXT (Retrieved from documents) ===");
-            sb.AppendLine();
-
             if (searchResults == null || searchResults.Count == 0)
             {
-                sb.AppendLine("No relevant document content was found.");
-                return sb.ToString();
+                return string.Empty;
             }
 
             for (int i = 0; i < searchResults.Count; i++)
             {
                 var result = searchResults[i];
-
-                sb.AppendLine($"[Source {i + 1}]");
+                sb.AppendLine($"[Source {i + 1}] (Score: {result.Score:F2})");
                 sb.AppendLine(result.ChunkText.Trim());
                 sb.AppendLine();
             }
 
             return sb.ToString();
         }
-
-
-        private string BuildPrompt(
-       string question,
-       string documentContext,
-       List<string>? conversationHistory)
-        {
-            var sb = new StringBuilder();
-
-            // SYSTEM
-            sb.AppendLine("=== SYSTEM ===");
-            sb.AppendLine("You are an AI assistant specialized in analyzing documents.");
-            sb.AppendLine("Answer the question strictly based on the information provided in the CONTEXT section.");
-            sb.AppendLine("If the answer is not present in the documents, explicitly say:");
-            sb.AppendLine("\"This information is not available in the provided documents.\"");
-            sb.AppendLine();
-
-            // CONVERSATION HISTORY (optional)
-            if (conversationHistory != null && conversationHistory.Count > 0)
-            {
-                sb.AppendLine("=== CONVERSATION HISTORY ===");
-                foreach (var message in conversationHistory)
-                {
-                    sb.AppendLine(message);
-                }
-                sb.AppendLine();
-            }
-
-            // CONTEXT
-            sb.AppendLine(documentContext);
-            sb.AppendLine();
-
-            // QUESTION
-            sb.AppendLine("=== QUESTION ===");
-            sb.AppendLine(question);
-            sb.AppendLine();
-
-            // ANSWER
-            sb.AppendLine("=== ANSWER ===");
-
-            return sb.ToString();
-        }
-
     }
 }

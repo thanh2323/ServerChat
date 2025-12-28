@@ -59,51 +59,52 @@ namespace DocuMind.Application.Services.ChatService
         }
 
 
-        public async Task<ServiceResult<ChatResponseDto>> SendMessageAsync(int userId, int sessionId, SendMessageDto dto)
-        {
-            var session = await _chatSessionRepository.GetWithDocumentsAsync(sessionId);
-            if (session == null || session.UserId != userId)
+            public async Task<ServiceResult<ChatResponseDto>> SendMessageAsync(int userId, int sessionId, SendMessageDto dto)
             {
-                return ServiceResult<ChatResponseDto>.Fail("Chat session not found or access denied.");
-            }
+                var session = await _chatSessionRepository.GetWithDocumentsAsync(sessionId);
+                if (session == null || session.UserId != userId)
+                {
+                    return ServiceResult<ChatResponseDto>.Fail("Chat session not found or access denied.");
+                }
 
 
-            var documentIds = session.SessionDocuments
-                .Select(sd => sd.DocumentId)
-                .ToList();
+                var documentIds = session.SessionDocuments
+                    .Select(sd => sd.DocumentId)
+                    .ToList();
 
-            if (!documentIds.Any())
-                return ServiceResult<ChatResponseDto>.Fail("No documents in this session");
-
-
-            var userMessage = new ChatMessage
-            {
-                SessionId = sessionId,
-                Content = dto.Content,
-                IsUser = true,
-                Timestamp = DateTime.UtcNow
-            };
-
-            await _chatMessage.AddAsync(userMessage);
+                if (!documentIds.Any())
+                    return ServiceResult<ChatResponseDto>.Fail("No documents in this session");
 
 
-            var ragResult = await _ragService.AskQuestionAsync(dto.Content, documentIds, sessionId);
+                var userMessage = new ChatMessage
+                {
+                    SessionId = sessionId,
+                    Content = dto.Content,
+                    IsUser = true,
+                    Timestamp = DateTime.UtcNow
+                };
 
-            if (!ragResult.Success)
-            {
-                return ServiceResult<ChatResponseDto>.Fail(ragResult.Message);
-            }
-            // 4. Save bot message
-            var botMessage = new ChatMessage
-            {
-                SessionId = sessionId,
-                Content = ragResult.Data!.Answer,
-                IsUser = false,
-                Timestamp = DateTime.UtcNow
-            };
+                await _chatMessage.AddAsync(userMessage);
+   
+                var ragResult = await _ragService.AskQuestionAsync(dto.Content, documentIds, sessionId);
 
-            await _chatMessage.AddAsync(botMessage);
-            await _chatMessage.SaveChangesAsync();
+                if (!ragResult.Success)
+                {
+                    return ServiceResult<ChatResponseDto>.Fail(ragResult.Message);
+                }
+                // 4. Save bot message
+                var botMessage = new ChatMessage
+                {
+                    SessionId = sessionId,
+                    Content = ragResult.Data!.Answer,
+                    IsUser = false,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                await _chatMessage.AddAsync(botMessage);
+                await _chatMessage.SaveChangesAsync();
+
+            Console.WriteLine($"UserMessage Id = {userMessage.Id}");
 
             //// 5. Update session activity
             //session.LastActiveAt = DateTime.UtcNow;
@@ -113,26 +114,26 @@ namespace DocuMind.Application.Services.ChatService
 
             // 6. Build response DTO
             var response = new ChatResponseDto
-            {
-                UserMessage = new MessageDto
                 {
-                    Id = userMessage.Id,
-                    Content = userMessage.Content,
-                    IsUser = true,
-                    Timestamp = userMessage.Timestamp
-                },
-                BotMessage = new MessageDto
-                {
-                    Id = botMessage.Id,
-                    Content = botMessage.Content,
-                    IsUser = false,
-                    Timestamp = botMessage.Timestamp
-                },
-                ProcessingTimeMs = ragResult.Data!.ProcessingTimeMs
-            };
+                    UserMessage = new MessageDto
+                    {
+                        Id = userMessage.Id,
+                        Content = userMessage.Content,
+                        IsUser = true,
+                        Timestamp = userMessage.Timestamp
+                    },
+                    BotMessage = new MessageDto
+                    {
+                        Id = botMessage.Id,
+                        Content = botMessage.Content,
+                        IsUser = false,
+                        Timestamp = botMessage.Timestamp
+                    },
+                    ProcessingTimeMs = ragResult.Data!.ProcessingTimeMs
+                };
 
-            return ServiceResult<ChatResponseDto>.Ok(response);
-        }
+                return ServiceResult<ChatResponseDto>.Ok(response);
+            }
 
         public async Task<ServiceResult<List<SessionDto>>> GetSessionsAsync(int userId)
         {

@@ -10,6 +10,10 @@ using DocuMind.Application.Services.ChatService;
 using DocuMind.Application.Services.DocumentService;
 using DocuMind.Application.Services.Rag;
 using DocuMind.Application.Services.UserService;
+using DocuMind.Application.Interface.IIntentClassifier;
+using DocuMind.Application.Services.IntentClassifier;
+using DocuMind.Application.Interface.IPrompt;
+using DocuMind.Application.Factories;
 using DocuMind.Core.Interfaces.IAuth;
 using DocuMind.Core.Interfaces.IBackgroundJob;
 using DocuMind.Core.Interfaces.IEmbedding;
@@ -110,6 +114,8 @@ namespace DocuMind.Infrastructure.Extention
             services.AddScoped<ILlmService, GeminiLlmService>();
             // RAG Service
             services.AddScoped<IRagService, RagService>();
+            services.AddScoped<IIntentClassifierService, IntentClassifierService>();
+            services.AddScoped<IPromptFactory, PromptFactory>();
 
             // Document Service
             services.AddScoped<IDocumentService, DocumentService>();
